@@ -8,8 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>Control Multi-Negocio</title>
-  link rel=icon type=image/svgxml href=favicon.svg  
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{
@@ -1435,7 +1434,8 @@ document.addEventListener('click', (e) => {
     if (cont && dd && !cont.contains(e.target)) dd.classList.remove('show');
 });
 
-window.onload = () => App.init();
+(function(){var l=document.createElement('link');l.rel='icon';l.type='image/svg+xml';l.href='favicon.svg';document.head.appendChild(l);})();
+  window.onload = () => App.init();
 </script>
 </body>
 </html>
