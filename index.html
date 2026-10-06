@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <title>Control Multi-Negocio</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{
@@ -16,7 +16,6 @@
   --accent-blue:#7c8cff;--accent-green:#3ee6b0;--ink:#0d1020;
   --text-main:#eef0ff;--text-sub:#a1a9cc;--border-color:#2a3260;
   --nav-bg:rgba(13,16,32,.88);--nav-active:rgba(124,140,255,.16);
-  
   --danger:#ff6b7d;--warning:#ffb454;--purple:#b69cff;--disabled-color:#363d66;
   --safe-bottom:env(safe-area-inset-bottom,0px);--safe-top:env(safe-area-inset-top,0px);
   --radius:16px;
@@ -151,7 +150,12 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 .nav-btn.active{background:var(--nav-active);color:var(--accent-blue);}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
-
+/* Indicador de conexión con Google Sheets */
+.conn-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:600;padding:.28rem .65rem;border-radius:999px;background:rgba(255,255,255,.12);vertical-align:middle;color:#fff;white-space:nowrap}
+.conn-dot{width:.65rem;height:.65rem;border-radius:50%;display:inline-block;flex:none}
+.conn-dot.conn-green{background:#22c55e;box-shadow:0 0 8px #22c55e}
+.conn-dot.conn-red{background:#ef4444;box-shadow:0 0 8px #ef4444}
+.conn-badge-login{margin:0 auto .9rem;background:rgba(15,23,42,.07);color:#0f172a}
 </style>
 </head>
 <body>
@@ -164,6 +168,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
         <div class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></div>
         <h2>Control Multi-Negocio</h2>
         <p>Inicia sesión para continuar</p>
+        <span id="connBadgeLogin" class="conn-badge conn-badge-login" title="Estado de la conexión con Google Sheets"><span id="connDotLogin" class="conn-dot conn-red"></span><span id="connTextLogin">Sin conexión</span></span>
         <form onsubmit="App.procesarLogin(event)" autocomplete="on">
             <div class="form-group"><label>Usuario</label><input type="text" id="login-user" required placeholder="Tu usuario o correo" autocomplete="username"></div>
             <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" required placeholder="••••••••" autocomplete="current-password"></div>
@@ -176,6 +181,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 <header>
     <h1><span class="square-badge"></span> <span id="app-heading">Resumen General</span></h1>
     <div class="header-actions">
+        <span id="connBadge" class="conn-badge" title="Estado de la conexión con Google Sheets"><span id="connDot" class="conn-dot conn-red"></span><span id="connText">Sin conexión</span></span>
         <div class="negocio-selector" id="negocio-selector-container" style="display:none;">
             <button type="button" class="negocio-btn" id="negocio-btn" onclick="App.toggleNegocioDropdown()">🏢 <span id="negocio-nombre-lbl">—</span> ▾</button>
             <div class="negocio-dropdown" id="negocio-dropdown"></div>
@@ -455,6 +461,17 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 // ═══════════════════════════════════════════════════════
 const API_URL = 'https://script.google.com/macros/s/AKfycby1vtk68AU3iAcMCguV_NbNg3VEKgbgEYxJ3j1qrW16l_uFsr0V1MIjwod4HluCDyoU/exec';
 
+/* Indicador de conexión con Google Sheets */
+function setConn(ok){
+    [['connDot','connText','connBadge'],['connDotLogin','connTextLogin','connBadgeLogin']].forEach(function(ids){
+        const d=document.getElementById(ids[0]),t=document.getElementById(ids[1]),b=document.getElementById(ids[2]);
+        if(!d||!t||!b) return;
+        d.className='conn-dot '+(ok?'conn-green':'conn-red');
+        t.textContent=ok?'Conectado':'Sin conexión';
+        b.title=ok?'Conexión con Google Sheets establecida':'Sin conexión con Google Sheets';
+    });
+}
+
 let chartSalidasInstance = null, chartDineroInstance = null;
 
 const App = {
@@ -477,16 +494,24 @@ const App = {
 
     async apiGet(params) {
         const url = API_URL + '?' + new URLSearchParams(params).toString();
-        const r = await fetch(url, { method: 'GET', redirect: 'follow' });
-        return await r.json();
+        try{
+            const r = await fetch(url, { method: 'GET', redirect: 'follow' });
+            const j = await r.json();
+            setConn(true);
+            return j;
+        }catch(e){ setConn(false); throw e; }
     },
     async apiPost(body) {
-        const r = await fetch(API_URL, {
-            method: 'POST',
-            body: JSON.stringify(body),
-            redirect: 'follow'
-        });
-        return await r.json();
+        try{
+            const r = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify(body),
+                redirect: 'follow'
+            });
+            const j = await r.json();
+            setConn(true);
+            return j;
+        }catch(e){ setConn(false); throw e; }
     },
     mostrarLoading(v) { document.getElementById('loading-overlay').style.display = v ? 'flex' : 'none'; },
 
@@ -1434,8 +1459,7 @@ document.addEventListener('click', (e) => {
     if (cont && dd && !cont.contains(e.target)) dd.classList.remove('show');
 });
 
-(function(){var l=document.createElement('link');l.rel='icon';l.type='image/svg+xml';l.href='favicon.svg';document.head.appendChild(l);})();
-  window.onload = () => App.init();
+window.onload = () => App.init();
 </script>
 </body>
 </html>
