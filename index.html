@@ -10,6 +10,7 @@
 <title>Control Multi-Negocio</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --bg-dark:#0d1020;--surface-dark:#151a30;--surface-2:#1c2240;
@@ -250,6 +251,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
         </div>
         <div style="display:flex;gap:6px;margin-bottom:8px;">
             <input type="text" id="input-buscar-inv" placeholder="🔍 Buscar..." autocomplete="off" onkeyup="App.cargarInventario()" style="flex:1;">
+            <button type="button" class="btn btn-secondary" onclick="App.exportarPDF('stock')" style="white-space:nowrap;">📄 PDF</button>
         </div>
         <div class="table-responsive">
             <table><thead><tr><th>Código</th><th>Producto</th><th>Costo</th><th>Precio</th><th>Stock</th><th>Acc.</th></tr></thead>
@@ -265,6 +267,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
                 <table><thead><tr><th>Producto</th><th>Costo</th><th>+40%</th><th>+30%</th><th>Calc.</th><th>Real</th></tr></thead>
                 <tbody id="tb-ficha-costo"></tbody></table>
             </div>
+            <div style="margin-top:.6rem;"><button type="button" class="btn btn-secondary" onclick="App.exportarPDF('ficha')">📄 Exportar PDF</button></div>
         </div>
     </section>
 
@@ -298,6 +301,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
                 <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Prod.</th><th>Cant.</th><th>P.U.</th><th>Total</th><th>Det.</th><th>Acc.</th></tr></thead>
                 <tbody id="tb-operaciones-ventas"></tbody></table>
             </div>
+            <div style="margin-top:.6rem;"><button type="button" class="btn btn-secondary" onclick="App.exportarPDF('ventas')">📄 Exportar PDF</button></div>
         </div>
     </section>
 
@@ -328,6 +332,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
                 <button type="button" id="btn-cerrar-semana" class="btn btn-danger" onclick="App.cerrarSemanaActual()" style="flex:1;min-width:80px;">🔒 Cerrar Semana</button>
                 <button type="button" id="btn-abrir-semana" class="btn btn-warning" onclick="App.desbloquearSemanaActual()" style="display:none;flex:1;min-width:80px;">🔓 Desbloquear</button>
                 <button type="button" class="btn btn-secondary" onclick="App.exportarExcel('resumen')" style="flex:1;min-width:80px;">📤 Exportar</button>
+                <button type="button" class="btn btn-secondary" onclick="App.exportarPDF('resumen')" style="flex:1;min-width:80px;">📄 PDF</button>
             </div>
         </div>
         <div id="subtab-graficos" style="display:none;" class="card-kpi">
@@ -1457,6 +1462,90 @@ const App = {
         const sh = XLSX.utils.aoa_to_sheet(ws);
         XLSX.utils.book_append_sheet(wb, sh, 'Reporte');
         XLSX.writeFile(wb, nombre);
+    },
+
+    /* ═══════ EXPORTAR PDF ═══════ */
+    exportarPDF(tipo) {
+        if (!window.jspdf) { alert('No se pudo cargar el generador de PDF. Revisa tu conexión e inténtalo de nuevo.'); return; }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const M = 12, ANCHO = 186;
+        const hoy = new Date().toLocaleDateString('es-CU');
+        const fmt$ = n => '$' + (parseFloat(n) || 0).toFixed(0);
+        let titulo = '', subtitulo = '', head = [], rows = [], colW = [], nombre = '';
+
+        const tabla = (y0) => {
+            const H = 7;
+            let y = y0;
+            const dibujarHead = () => {
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+                doc.setFillColor(13, 92, 70); doc.setTextColor(255, 255, 255);
+                let x = M;
+                head.forEach((h, i) => { doc.rect(x, y, colW[i], H, 'F'); doc.text(String(h), x + 2, y + 5); x += colW[i]; });
+                y += H; doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal');
+            };
+            dibujarHead();
+            rows.forEach(r => {
+                if (y > 275) { doc.addPage(); y = 15; dibujarHead(); }
+                let x = M;
+                r.forEach((c, i) => { doc.rect(x, y, colW[i], H); doc.text(String(c).substring(0, 42), x + 2, y + 5); x += colW[i]; });
+                y += H;
+            });
+            return y;
+        };
+
+        if (tipo === 'stock') {
+            titulo = 'Inventario / Stock'; nombre = `Stock_${this.negocioNombre}.pdf`;
+            head = ['Código', 'Producto', 'Costo', 'Precio', 'Stock']; colW = [24, 82, 28, 28, 24];
+            this.productos.forEach(p => rows.push([p.codigo, p.nombre, fmt$(p.costo), fmt$(p.precio), p.stock]));
+        } else if (tipo === 'ficha') {
+            titulo = 'Ficha de Costos'; nombre = `FichaCostos_${this.negocioNombre}.pdf`;
+            head = ['Producto', 'Costo', '+40%', '+30%', 'Calc.', 'Real']; colW = [66, 24, 24, 24, 24, 24];
+            this.productos.forEach(p => {
+                const c = parseFloat(p.costo) || 0, pr = parseFloat(p.precio) || 0;
+                rows.push([p.nombre, fmt$(c), fmt$(c * 0.40), fmt$(c * 0.30), fmt$(c * 1.70), fmt$(pr)]);
+            });
+        } else if (tipo === 'ventas') {
+            titulo = `Operaciones - Semana ${this.semanaActual}`; nombre = `Ventas_S${this.semanaActual}_${this.negocioNombre}.pdf`;
+            const fil = (document.getElementById('filtro-dia-ventas') || {}).value || '';
+            if (fil) subtitulo = 'Filtrado por día: ' + fil;
+            head = ['Fecha', 'Tipo', 'Producto', 'Cant.', 'P.U.', 'Total']; colW = [34, 22, 64, 16, 25, 25];
+            let vs = this.ventas.filter(v => v.semana === this.semanaActual);
+            if (fil) vs = vs.filter(v => (v.fechaHora || '').split(',')[0].trim() === fil);
+            let tot = 0;
+            vs.forEach(v => {
+                const p = this.productos.find(x => String(x.codigo) === String(v.prodId));
+                const tipoV = v.esMerma ? 'Merma' : (v.esRebaja ? 'Rebaja' : 'Venta');
+                tot += v.total || 0;
+                rows.push([(v.fechaHora || '').split(',')[0], tipoV, p ? p.nombre : 'Eliminado', v.cantidad, fmt$(v.precioUsado), fmt$(v.total)]);
+            });
+            subtitulo = (subtitulo ? subtitulo + '  ·  ' : '') + 'Total: ' + fmt$(tot);
+        } else if (tipo === 'resumen') {
+            titulo = `Resumen Semana ${this.semanaActual}`; nombre = `Resumen_S${this.semanaActual}_${this.negocioNombre}.pdf`;
+            const info = this.semanasInfo[this.semanaActual] || {};
+            subtitulo = `Trabajador: ${info.trabajador || '-'}  ·  ${info.fechas || ''}`;
+            head = ['Cód.', 'Producto', 'Precio', 'Sal.', 'Mer.', 'Fin.', 'Total']; colW = [20, 62, 24, 18, 18, 20, 24];
+            let totGen = 0;
+            this.productos.forEach(p => {
+                const m = this.ventas.filter(v => v.semana === this.semanaActual && String(v.prodId) === String(p.codigo));
+                const sv = m.filter(v => !v.esMerma).reduce((a, c) => a + c.cantidad, 0);
+                const me = m.filter(v => v.esMerma).reduce((a, c) => a + c.cantidad, 0);
+                const t = m.reduce((a, c) => a + c.total, 0); totGen += t;
+                rows.push([p.codigo, p.nombre, fmt$(p.precio), sv, me, p.stock, fmt$(t)]);
+            });
+            rows.push(['', '', '', '', '', 'TOTAL:', fmt$(totGen)]);
+        }
+
+        if (!rows.length) { alert('No hay datos para exportar.'); return; }
+        let y = 18;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+        doc.text(titulo, M, y); y += 7;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+        doc.text(`${this.negocioNombre}  ·  ${hoy}`, M, y); y += 5;
+        if (subtitulo) { doc.text(subtitulo, M, y); y += 5; }
+        y += 2;
+        tabla(y);
+        doc.save(nombre);
     }
 };
 
