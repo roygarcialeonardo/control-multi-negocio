@@ -1479,9 +1479,12 @@ const App = {
             let y = y0;
             const dibujarHead = () => {
                 doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-                doc.setFillColor(13, 92, 70); doc.setTextColor(255, 255, 255);
+                doc.setFillColor(13, 92, 70);
                 let x = M;
-                head.forEach((h, i) => { doc.rect(x, y, colW[i], H, 'F'); doc.text(String(h), x + 2, y + 5); x += colW[i]; });
+                head.forEach((h, i) => { doc.rect(x, y, colW[i], H, 'F'); x += colW[i]; });
+                doc.setTextColor(255, 255, 255);
+                x = M;
+                head.forEach((h, i) => { doc.text(String(h), x + 2, y + 5); x += colW[i]; });
                 y += H; doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'normal');
             };
             dibujarHead();
