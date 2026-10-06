@@ -151,11 +151,13 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 /* Indicador de conexión con Google Sheets */
-.conn-badge{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:600;padding:.28rem .65rem;border-radius:999px;background:rgba(255,255,255,.12);vertical-align:middle;color:#fff;white-space:nowrap}
-.conn-dot{width:.65rem;height:.65rem;border-radius:50%;display:inline-block;flex:none}
-.conn-dot.conn-green{background:#22c55e;box-shadow:0 0 8px #22c55e}
-.conn-dot.conn-red{background:#ef4444;box-shadow:0 0 8px #ef4444}
-.conn-badge-login{margin:0 auto .9rem;background:rgba(15,23,42,.07);color:#0f172a}
+.conn-badge{display:inline-flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:700;padding:.5rem 1rem;border-radius:999px;vertical-align:middle;white-space:nowrap;border:2px solid transparent;transition:background .3s,border-color .3s}
+.conn-dot{width:.8rem;height:.8rem;border-radius:50%;display:inline-block;flex:none}
+.conn-badge.is-ok{background:rgba(34,197,94,.18);border-color:#22c55e;color:#bbf7d0}
+.conn-badge.is-ok .conn-dot{background:#22c55e;box-shadow:0 0 10px #22c55e}
+.conn-badge.is-fail{background:rgba(239,68,68,.18);border-color:#ef4444;color:#fecaca}
+.conn-badge.is-fail .conn-dot{background:#ef4444;box-shadow:0 0 10px #ef4444}
+.conn-badge-login{margin:0 auto 1.2rem;font-size:.95rem;padding:.65rem 1.3rem}
 </style>
 </head>
 <body>
@@ -168,7 +170,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
         <div class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="3"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.3" fill="currentColor" stroke="none"/></svg></div>
         <h2>Control Multi-Negocio</h2>
         <p>Inicia sesión para continuar</p>
-        <span id="connBadgeLogin" class="conn-badge conn-badge-login" title="Estado de la conexión con Google Sheets"><span id="connDotLogin" class="conn-dot conn-red"></span><span id="connTextLogin">Sin conexión</span></span>
+        <span id="connBadgeLogin" class="conn-badge conn-badge-login is-fail" title="Estado de la conexión con Google Sheets"><span id="connDotLogin" class="conn-dot"></span><span id="connTextLogin">Sin conexión</span></span>
         <form onsubmit="App.procesarLogin(event)" autocomplete="on">
             <div class="form-group"><label>Usuario</label><input type="text" id="login-user" required placeholder="Tu usuario o correo" autocomplete="username"></div>
             <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" required placeholder="••••••••" autocomplete="current-password"></div>
@@ -181,7 +183,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 <header>
     <h1><span class="square-badge"></span> <span id="app-heading">Resumen General</span></h1>
     <div class="header-actions">
-        <span id="connBadge" class="conn-badge" title="Estado de la conexión con Google Sheets"><span id="connDot" class="conn-dot conn-red"></span><span id="connText">Sin conexión</span></span>
+        <span id="connBadge" class="conn-badge is-fail" title="Estado de la conexión con Google Sheets"><span id="connDot" class="conn-dot"></span><span id="connText">Sin conexión</span></span>
         <div class="negocio-selector" id="negocio-selector-container" style="display:none;">
             <button type="button" class="negocio-btn" id="negocio-btn" onclick="App.toggleNegocioDropdown()">🏢 <span id="negocio-nombre-lbl">—</span> ▾</button>
             <div class="negocio-dropdown" id="negocio-dropdown"></div>
@@ -466,7 +468,9 @@ function setConn(ok){
     [['connDot','connText','connBadge'],['connDotLogin','connTextLogin','connBadgeLogin']].forEach(function(ids){
         const d=document.getElementById(ids[0]),t=document.getElementById(ids[1]),b=document.getElementById(ids[2]);
         if(!d||!t||!b) return;
-        d.className='conn-dot '+(ok?'conn-green':'conn-red');
+        d.className='conn-dot';
+        b.classList.remove('is-ok','is-fail');
+        b.classList.add(ok?'is-ok':'is-fail');
         t.textContent=ok?'Conectado':'Sin conexión';
         b.title=ok?'Conexión con Google Sheets establecida':'Sin conexión con Google Sheets';
     });
