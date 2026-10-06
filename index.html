@@ -517,6 +517,10 @@ const App = {
 
     // ═══════ INIT ═══════
     init: function() {
+        // Ping inicial para mostrar el estado real de la conexión en el login
+        fetch(API_URL, {method:'GET', redirect:'follow'})
+            .then(() => setConn(true))
+            .catch(() => setConn(false));
         const s = sessionStorage.getItem('multi_user');
         if (s) {
             this.currentUser = JSON.parse(s);
