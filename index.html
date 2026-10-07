@@ -483,6 +483,24 @@ function setConn(ok){
 
 let chartSalidasInstance = null, chartDineroInstance = null;
 
+/* Petición resistente: reintenta si la red falla o si Google devuelve una página HTML de error */
+async function fetchResiliente(url, opts, intentos) {
+    intentos = intentos || 3;
+    let ultimoError = null;
+    for (let i = 0; i < intentos; i++) {
+        try {
+            const r = await fetch(url, opts);
+            const txt = await r.text();
+            if (txt.trim().charAt(0) === '<') { ultimoError = new Error('RESPUESTA_HTML'); }
+            else return JSON.parse(txt);
+        } catch(e) { ultimoError = e; }
+        if (i < intentos - 1) await new Promise(res => setTimeout(res, 1200));
+    }
+    if (ultimoError && ultimoError.message === 'RESPUESTA_HTML')
+        throw new Error('Google no respondió correctamente. Revisa tu conexión e inténtalo de nuevo.');
+    throw ultimoError;
+}
+
 const App = {
     semanaActual: 1,
     negocioActual: null,
@@ -504,20 +522,18 @@ const App = {
     async apiGet(params) {
         const url = API_URL + '?' + new URLSearchParams(params).toString();
         try{
-            const r = await fetch(url, { method: 'GET', redirect: 'follow' });
-            const j = await r.json();
+            const j = await fetchResiliente(url, { method: 'GET', redirect: 'follow' });
             setConn(true);
             return j;
         }catch(e){ setConn(false); throw e; }
     },
     async apiPost(body) {
         try{
-            const r = await fetch(API_URL, {
+            const j = await fetchResiliente(API_URL, {
                 method: 'POST',
                 body: JSON.stringify(body),
                 redirect: 'follow'
             });
-            const j = await r.json();
             setConn(true);
             return j;
         }catch(e){ setConn(false); throw e; }
@@ -526,10 +542,16 @@ const App = {
 
     // ═══════ INIT ═══════
     init: function() {
-        // Ping inicial para mostrar el estado real de la conexión en el login
-        fetch(API_URL, {method:'GET', redirect:'follow'})
-            .then(() => setConn(true))
-            .catch(() => setConn(false));
+        // Ping inicial con reintentos: la red móvil a veces falla al primer intento
+        (async () => {
+            for (let i = 0; i < 3; i++) {
+                try {
+                    await fetchResiliente(API_URL + '?accion=ping', {method:'GET', redirect:'follow'}, 1);
+                    setConn(true); return;
+                } catch(e) { if (i < 2) await new Promise(r => setTimeout(r, 1500)); }
+            }
+            setConn(false);
+        })();
         const s = sessionStorage.getItem('multi_user');
         if (s) {
             this.currentUser = JSON.parse(s);
@@ -577,7 +599,11 @@ const App = {
             } else {
                 document.getElementById('login-error').style.display = 'block';
             }
-        } catch(err) { alert('Error: ' + err.message); }
+        } catch(err) {
+            const le = document.getElementById('login-error');
+            le.textContent = '\u274C ' + (err.message || 'No se pudo conectar. Revisa tu internet e int\u00E9ntalo de nuevo.');
+            le.style.display = 'block';
+        }
         finally { this.mostrarLoading(false); }
     },
 
