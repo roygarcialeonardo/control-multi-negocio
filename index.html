@@ -167,9 +167,10 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 .ticket .t-sep{text-align:center;overflow:hidden;white-space:nowrap;margin:2px 0;}
 .ticket .t-row{display:flex;justify-content:space-between;gap:8px;}
 #ticket-mipyme-nota{font-size:.8rem;color:var(--text-sub);margin-bottom:.6rem;text-align:center;}
-#ticket-photo{position:relative;background:radial-gradient(circle at 50% 28%,#4b4b50,#232326 78%);padding:26px 18px;border-radius:8px;overflow:hidden;margin-bottom:.8rem;}
+#ticket-photo{position:relative;padding:26px 18px;border-radius:8px;overflow:hidden;margin-bottom:.8rem;background-color:#f2f2f2;background-image:linear-gradient(45deg,#dcdcdc 25%,transparent 25%),linear-gradient(-45deg,#dcdcdc 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#dcdcdc 75%),linear-gradient(-45deg,transparent 75%,#dcdcdc 75%);background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;}
 #ticket-stage{transition:transform .2s;}
-#ticket-stage .ticket{box-shadow:0 14px 26px rgba(0,0,0,.55);}
+#ticket-stage .receipt{filter:drop-shadow(0 12px 14px rgba(0,0,0,.35));}
+#ticket-stage .ticket{border-radius:0;}
 #ticket-photo .grain{position:absolute;inset:0;pointer-events:none;opacity:.10;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.6 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
 </style>
 </head>
@@ -716,6 +717,22 @@ brote: '<path d="M24 43V22"/><path d="M24 28C18 28 14 24 14 18c6 0 10 4 10 10z"/
 estrella: '<path d="M24 7l5.5 11.5 12.5 1.5-9.2 8.5 2.7 12.5-11.5-6.5-11.5 6.5 2.7-12.5-9.2-8.5 12.5-1.5z"/>',
 tienda: '<path d="M6 19l2.5-9h31L42 19"/><path d="M8 19v19h32V19"/><path d="M8 19a4.5 4.5 0 0 0 9 0 4.5 4.5 0 0 0 9 0 4.5 4.5 0 0 0 9 0"/><path d="M18 38v-8h12v8"/>'
 };
+function curlSVG(pos, uid, curve) {
+    if (pos === 'top') {
+        return '<svg viewBox="0 0 280 26" preserveAspectRatio="none" style="display:block;width:100%;height:24px;margin-bottom:-3px;">' +
+        '<defs><linearGradient id="ct' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0" stop-color="#ffffff"/><stop offset="0.42" stop-color="#ececec"/>' +
+        '<stop offset="0.72" stop-color="#9d9d9d"/><stop offset="0.88" stop-color="#e2e2e2"/><stop offset="1" stop-color="#fbfbfb"/>' +
+        '</linearGradient></defs>' +
+        '<path d="M0,0 H280 V8 Q140,' + curve + ' 0,8 Z" fill="url(#ct' + uid + ')"/></svg>';
+    }
+    return '<svg viewBox="0 0 280 26" preserveAspectRatio="none" style="display:block;width:100%;height:24px;margin-top:-3px;">' +
+    '<defs><linearGradient id="cb' + uid + '" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0" stop-color="#7e7e7e"/><stop offset="0.25" stop-color="#f2f2f2"/>' +
+    '<stop offset="0.6" stop-color="#c6c6c6"/><stop offset="1" stop-color="#8c8c8c"/>' +
+    '</linearGradient></defs>' +
+    '<path d="M0,18 Q140,' + (26 - curve) + ' 280,18 V26 H0 Z" fill="url(#cb' + uid + ')"/></svg>';
+}
 function iconoSVG(key, x, y, w, h) {
     const inner = ICONOS[key] || ICONOS.tienda;
     return '<svg x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" viewBox="0 0 48 48">' +
@@ -1325,8 +1342,14 @@ const App = {
         this._ultimoTicketHTML = html;
         const hsh = hashStr(m.nombre + '|' + m.nit);
         const ang = (((hsh % 41) - 20) / 10).toFixed(1);
+        const uid = 'rl' + num;
+        let cT = (hsh % 3) !== 2, cB = ((hsh >> 2) % 3) !== 2;
+        if (!cT && !cB) cB = true;
+        const deco = '<div class="receipt">' +
+            (cT ? curlSVG('top', uid, 22 + (hsh % 5)) : '') + html +
+            (cB ? curlSVG('bottom', uid, 20 + ((hsh >> 3) % 5)) : '') + '</div>';
         const stage = document.getElementById('ticket-stage');
-        stage.innerHTML = html;
+        stage.innerHTML = deco;
         stage.style.transform = 'rotate(' + ang + 'deg)';
         document.getElementById('ticket-mipyme-nota').textContent = 'Proveedor sugerido: ' + m.nombre + ' (' + m.rubro + ') · Cant. inicial: ' + cant;
         document.getElementById('modal-ticket').style.display = 'flex';
