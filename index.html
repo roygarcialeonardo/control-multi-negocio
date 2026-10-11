@@ -159,6 +159,15 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
 .conn-badge.is-fail{background:rgba(239,68,68,.18);border-color:#ef4444;color:#fecaca}
 .conn-badge.is-fail .conn-dot{background:#ef4444;box-shadow:0 0 10px #ef4444}
 .conn-badge-login{margin:0 auto 1.2rem;font-size:.95rem;padding:.65rem 1.3rem}
+
+/* Ticket POS - factura de compra */
+.ticket{font-family:'Courier New',Courier,monospace;font-size:13px;line-height:1.45;width:280px;max-width:100%;margin:0 auto;background:#fff;color:#111;padding:14px 12px;border-radius:6px;}
+.ticket .t-center{text-align:center;}
+.ticket .t-bold{font-weight:bold;}
+.ticket .t-sep{text-align:center;overflow:hidden;white-space:nowrap;margin:2px 0;}
+.ticket .t-row{display:flex;justify-content:space-between;gap:8px;}
+#ticket-wrap{background:#fff;border-radius:8px;padding:10px;margin-bottom:.8rem;}
+#ticket-mipyme-nota{font-size:.8rem;color:var(--text-sub);margin-bottom:.6rem;text-align:center;}
 </style>
 </head>
 <body>
@@ -264,7 +273,7 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
         <div class="card-kpi">
             <h3 style="color:var(--accent-blue);margin-bottom:.6rem;">🧮 Ficha de Costos</h3>
             <div class="table-responsive">
-                <table><thead><tr><th>Producto</th><th>Costo</th><th>+40%</th><th>+30%</th><th>Calc.</th><th>Real</th></tr></thead>
+                <table><thead><tr><th>Producto</th><th>Costo</th><th>+40%</th><th>+30%</th><th>Calc.</th><th>Real</th><th title="Factura de compra">🧾</th></tr></thead>
                 <tbody id="tb-ficha-costo"></tbody></table>
             </div>
             <div style="margin-top:.6rem;"><button type="button" class="btn btn-secondary" onclick="App.exportarPDF('ficha')">📄 Exportar PDF</button></div>
@@ -452,6 +461,18 @@ nav.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:flex;
         </form>
     </div>
 </div>
+<div id="modal-ticket" class="modal">
+    <div class="modal-content" style="max-width:360px;">
+        <h3>🧾 Factura de Compra</h3>
+        <div id="ticket-mipyme-nota"></div>
+        <div id="ticket-wrap"><div id="ticket-preview"></div></div>
+        <div class="form-row">
+            <button type="button" class="btn btn-secondary" onclick="App.cerrarModalTicket()" style="flex:1;">Cerrar</button>
+            <button type="button" class="btn" onclick="App.imprimirTicket()" style="flex:1;">🖨️ Imprimir</button>
+        </div>
+    </div>
+</div>
+
 
 <nav class="bottom-nav">
     <button type="button" class="nav-btn" id="nav-dashboard" onclick="App.cambiarPantalla('dashboard','Dashboard')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Dash</span></button>
@@ -501,6 +522,150 @@ async function fetchResiliente(url, opts, intentos) {
     throw ultimoError;
 }
 
+// ═══════ DIRECTORIO MIPYMES (PDF: Directorio y Plantillas POS MiPYMES Cuba) ═══════
+const MIPYMES = [
+{nombre:"Panadería Glez",prov:"Artemisa",nit:"30001284920",tipo:"Privada",rubro:"Elaboración de pan y repostería"},
+{nombre:"AlaSoluciones",prov:"La Habana",nit:"30004928112",tipo:"Privada",rubro:"Equipos de medición y control"},
+{nombre:"IVROTEC",prov:"La Habana",nit:"30009120394",tipo:"Privada",rubro:"Fabricación de plásticos"},
+{nombre:"Mecánica Guásimas",prov:"La Habana",nit:"30005512948",tipo:"Privada",rubro:"Maquinaria agropecuaria"},
+{nombre:"Addimensional",prov:"La Habana",nit:"30001928374",tipo:"Privada",rubro:"Artículos de plástico e impresión 3D"},
+{nombre:"Grupo BauMec",prov:"La Habana",nit:"30008812934",tipo:"Privada",rubro:"Mantenimiento automotor"},
+{nombre:"Lombao Tech",prov:"La Habana",nit:"30007712940",tipo:"Privada",rubro:"Programación y software"},
+{nombre:"EnParalelo",prov:"La Habana",nit:"30003392019",tipo:"Privada",rubro:"Producción de microvegetales"},
+{nombre:"Sokol Impresiones",prov:"La Habana",nit:"30001192847",tipo:"Privada",rubro:"Servicios de gráﬁca e impresión"},
+{nombre:"Provatgom",prov:"La Habana",nit:"30004491823",tipo:"Privada",rubro:"Recuperación de neumáticos"},
+{nombre:"Cinesoft Recreación",prov:"La Habana",nit:"10002938410",tipo:"Estatal",rubro:"Parques temáticos y recreación"},
+{nombre:"Tatine Alimentos",prov:"La Habana",nit:"30009928134",tipo:"Privada",rubro:"Conservas de frutas y vegetales"},
+{nombre:"El Rey Carnes",prov:"La Habana",nit:"30006619283",tipo:"Privada",rubro:"Procesamiento cárnico"},
+{nombre:"Reciclaje Sostenible",prov:"La Habana",nit:"30002281934",tipo:"Privada",rubro:"Recuperación de desechos"},
+{nombre:"Serlovem",prov:"La Habana",nit:"10008829102",tipo:"Estatal",rubro:"Comercio mayorista"},
+{nombre:"Edumedia Software",prov:"La Habana",nit:"10003392011",tipo:"Estatal",rubro:"Servicios informáticos"},
+{nombre:"Guajiritos Tech",prov:"La Habana",nit:"30005519283",tipo:"Privada",rubro:"Plataformas digitales y software"},
+{nombre:"Pyxel Solutions",prov:"La Habana",nit:"30008819230",tipo:"Privada",rubro:"Desarrollo y exportación desoftware"},
+{nombre:"Alimentos Alelí",prov:"Matanzas",nit:"30001129384",tipo:"Privada",rubro:"Producción de alimentospreparados"},
+{nombre:"Lácteos Rojas",prov:"Mayabeque",nit:"30005512903",tipo:"Privada",rubro:"Derivados lácteos y quesos"},
+{nombre:"Roblox Materiales",prov:"Matanzas",nit:"30009912039",tipo:"Privada",rubro:"Materiales de construcción"},
+{nombre:"Enernova",prov:"Matanzas",nit:"30004410293",tipo:"Privada",rubro:"Recuperación energética y plásticos"},
+{nombre:"Servimav",prov:"Cienfuegos",nit:"30007719283",tipo:"Privada",rubro:"Jardinería y paisajismo"},
+{nombre:"Bormey Foods",prov:"Villa Clara",nit:"30002938411",tipo:"Privada",rubro:"Procesado de maní y conﬁtes"},
+{nombre:"AgroMedia Luna",prov:"Ciego de Ávila",nit:"30003310294",tipo:"Privada",rubro:"Jugos y conservas agrícolas"},
+{nombre:"Chef Migue",prov:"Camagüey",nit:"30008810293",tipo:"Privada",rubro:"Servicios gastronómicos ybanquetes"},
+{nombre:"TUHamburguesa",prov:"Holguín",nit:"30001192039",tipo:"Privada",rubro:"Comida rápida y eventos"},
+{nombre:"Compay Ramón",prov:"Santiago de Cuba",nit:"30006612903",tipo:"Privada",rubro:"Elaboración de alimentos"},
+{nombre:"Confecciones Lora",prov:"Santiago de Cuba",nit:"30002291029",tipo:"Privada",rubro:"Textiles y confección de ropa"},
+{nombre:"Disemax Sánchez",prov:"Pinar del Río",nit:"30009912834",tipo:"Privada",rubro:"Impresión fotográﬁca y diseño"},
+{nombre:"Taller Moto Artemisa",prov:"Artemisa",nit:"30004419203",tipo:"Privada",rubro:"Reparación de motocicletas"},
+{nombre:"ATC Automotor",prov:"Artemisa",nit:"30007710293",tipo:"Privada",rubro:"Mantenimiento mecánico industrial"},
+{nombre:"Casa Pesca",prov:"Artemisa",nit:"30003382910",tipo:"Privada",rubro:"Acuicultura y venta de pescado"},
+{nombre:"RFR Colorín",prov:"La Habana",nit:"30005592810",tipo:"Privada",rubro:"Fabricación de calzado artesanal"},
+{nombre:"Bebas Cake",prov:"La Habana",nit:"30002201928",tipo:"Privada",rubro:"Repostería ﬁna y pastelería"},
+{nombre:"iMAQ Tecnologías",prov:"La Habana",nit:"30009982103",tipo:"Privada",rubro:"Maquinaria industrial especializada"},
+{nombre:"Vélo Cuba",prov:"La Habana",nit:"30009920182",tipo:"Privada",rubro:"Taller de bicicletas y transporte"},
+{nombre:"Emsi Farma",prov:"La Habana",nit:"30004481029",tipo:"Privada",rubro:"Equipos para industria farmacéutica"},
+{nombre:"Cubelas Tintorería",prov:"La Habana",nit:"30007701928",tipo:"Privada",rubro:"Servicios de lavandería e higiene"},
+{nombre:"Hermes Soluciones",prov:"La Habana",nit:"30003319204",tipo:"Privada",rubro:"Sistemas informáticos y redes"},
+{nombre:"Reclitec Refrigeración",prov:"La Habana",nit:"30008819203",tipo:"Privada",rubro:"Climatización y frío industrial"},
+{nombre:"Torres-Remón",prov:"La Habana",nit:"30001192834",tipo:"Privada",rubro:"Taller mecánico de autos"},
+{nombre:"Kikun Agro",prov:"La Habana",nit:"30005501928",tipo:"Privada",rubro:"Procesado agroalimentario"},
+{nombre:"La Saludeña",prov:"Mayabeque",nit:"30002291039",tipo:"Privada",rubro:"Fábrica de conservas vegetal"},
+{nombre:"Mayaplast",prov:"Mayabeque",nit:"30009901928",tipo:"Privada",rubro:"Artículos plásticos inyectados"},
+{nombre:"Contabter CNA",prov:"Matanzas",nit:"20004419203",tipo:"CNA",rubro:"Servicios contables y auditoría"},
+{nombre:"RegaleVino",prov:"Villa Clara",nit:"30007781029",tipo:"Privada",rubro:"Elaboración artesanal de vinos"},
+{nombre:"D'Taxi XQVA",prov:"Villa Clara",nit:"30003301928",tipo:"Privada",rubro:"Transporte de carga y pasajeros"},
+{nombre:"Texmyco Muebles",prov:"Villa Clara",nit:"30008891029",tipo:"Privada",rubro:"Fabricación de muebles ycolchones"},
+{nombre:"Júcar Tech",prov:"Ciego de Ávila",nit:"30001102918",tipo:"Privada",rubro:"Desarrollo web y aplicaciones"},
+{nombre:"Finca San José",prov:"Ciego de Ávila",nit:"30005581029",tipo:"Privada",rubro:"Producción agrícola y lácteos"},
+{nombre:"Típico Id&Ed",prov:"Ciego de Ávila",nit:"30002201938",tipo:"Privada",rubro:"Restaurante y cafetería"},
+{nombre:"La Ceiba Minindustria",prov:"Ciego de Ávila",nit:"30009910293",tipo:"Privada",rubro:"Procesado de frutas y vegetales"},
+{nombre:"El Desafío Agro",prov:"Camagüey",nit:"30004401928",tipo:"Privada",rubro:"Conservas de carnes y frutas"},
+{nombre:"Plástico Bahamonde",prov:"Las Tunas",nit:"30007791029",tipo:"Privada",rubro:"Artículos para el hogar y envases"},
+{nombre:"Muebles Villazul",prov:"Las Tunas",nit:"30003301938",tipo:"Privada",rubro:"Carpintería de madera y muebles"},
+{nombre:"Transportaciones Vázquez",prov:"Granma",nit:"30008801928",tipo:"Privada",rubro:"Carga pesada por carretera"},
+{nombre:"Yoyos Gastronomía",prov:"Granma",nit:"30001191029",tipo:"Privada",rubro:"Servicios de comida rápida"},
+{nombre:"Wi-Creativa SURL",prov:"Holguín",nit:"30005501938",tipo:"Privada",rubro:"Impresión digital y publicidad"},
+{nombre:"LVC Automotor",prov:"Granma",nit:"30002291028",tipo:"Privada",rubro:"Taller de electromecánica"},
+{nombre:"Delicias Sophia",prov:"Villa Clara",nit:"30009901938",tipo:"Privada",rubro:"Panadería y dulcería artesanal"},
+{nombre:"Tropicales JW",prov:"Mayabeque",nit:"30004491028",tipo:"Privada",rubro:"Jugos concentrados y refrescos"},
+{nombre:"Ahumados Los Amigos",prov:"Villa Clara",nit:"30007701938",tipo:"Privada",rubro:"Embutidos y carnes ahumadas"},
+{nombre:"BC Belcasa",prov:"Villa Clara",nit:"30003391028",tipo:"Privada",rubro:"Vinatería y licores locales"},
+{nombre:"Rappi Cuba SURL",prov:"Mayabeque",nit:"30008801938",tipo:"Privada",rubro:"Servicio de mensajería y entrega"},
+{nombre:"OWM-Alas",prov:"La Habana",nit:"30001191038",tipo:"Privada",rubro:"Relojes de control e ingeniería"},
+{nombre:"Emjerci Ejes",prov:"Camagüey",nit:"30005591028",tipo:"Privada",rubro:"Rectiﬁcación de cigüeñales"},
+{nombre:"Andru Software",prov:"Camagüey",nit:"30009991028",tipo:"Privada",rubro:"Programación y páginas web"},
+{nombre:"Nuovo Caffé Kohly",prov:"La Habana",nit:"30004401948",tipo:"Privada",rubro:"Cafetería y servicio gastronómico"},
+{nombre:"San Francisco Panes",prov:"Cienfuegos",nit:"30007791038",tipo:"Privada",rubro:"Panadería y derivados de harina"},
+{nombre:"YiCoMo Tech",prov:"Camagüey",nit:"30003301948",tipo:"Privada",rubro:"Soluciones informáticas"},
+{nombre:"JAM Tecnológica",prov:"Santiago de Cuba",nit:"30008891038",tipo:"Privada",rubro:"Reparación de computadoras"},
+{nombre:"Simple Bistro",prov:"La Habana",nit:"30001101948",tipo:"Privada",rubro:"Servicios gastronómicos"},
+{nombre:"Transnovoa",prov:"Guantánamo",nit:"30005501948",tipo:"Privada",rubro:"Transporte interprovincial"},
+{nombre:"Solind Maquinarias",prov:"La Habana",nit:"30002291048",tipo:"Privada",rubro:"Mantenimiento de motores"},
+{nombre:"Sigas Talleres",prov:"Santiago de Cuba",nit:"30009901948",tipo:"Privada",rubro:"Conversión a gas de autos"},
+{nombre:"Wboix Juguetes",prov:"Santiago de Cuba",nit:"30004491038",tipo:"Privada",rubro:"Fabricación de juguetes de madera"},
+{nombre:"SaborIta Carnes",prov:"La Habana",nit:"30007701948",tipo:"Privada",rubro:"Procesado de embutidos"},
+{nombre:"Buena Tinta",prov:"Santiago de Cuba",nit:"30003391038",tipo:"Privada",rubro:"Impresión y diseño gráﬁco"},
+{nombre:"Paradisos Pan",prov:"La Habana",nit:"30008801948",tipo:"Privada",rubro:"Dulcería y galletería"},
+{nombre:"Construcciones Dalex",prov:"La Habana",nit:"30001191048",tipo:"Privada",rubro:"Servicios de construcción civil"},
+{nombre:"Rafcar Talleres",prov:"Santiago de Cuba",nit:"30005591038",tipo:"Privada",rubro:"Electromecánica automotriz"},
+{nombre:"Diazmoll Contable",prov:"Santiago de Cuba",nit:"30002201958",tipo:"Privada",rubro:"Teneduría de libros y ﬁnanzas"},
+{nombre:"Procrea Construcción",prov:"La Habana",nit:"30009991038",tipo:"Privada",rubro:"Remodelación de inmuebles"},
+{nombre:"Besú Const",prov:"Matanzas",nit:"30004401958",tipo:"Privada",rubro:"Obras de ingeniería civil"},
+{nombre:"Doña Tina Gastronomía",prov:"La Habana",nit:"30007791048",tipo:"Privada",rubro:"Comida tradicional cubana"},
+{nombre:"Mosaicos Ale-Lí",prov:"Granma",nit:"30003301958",tipo:"Privada",rubro:"Fabricación de baldosas y tubos"},
+{nombre:"Vidrios Vesta",prov:"Villa Clara",nit:"30008891048",tipo:"Privada",rubro:"Reciclaje de vidrio y frascos"},
+{nombre:"Campi Reparaciones",prov:"La Habana",nit:"30001101958",tipo:"Privada",rubro:"Reparación de electrodomésticos"},
+{nombre:"DiWeb Cienfuegos",prov:"Cienfuegos",nit:"30005501958",tipo:"Privada",rubro:"Diseño de sitios web e eCommerce"},
+{nombre:"Megamadera Mirador",prov:"Pinar del Río",nit:"30002291058",tipo:"Privada",rubro:"Fabricación de pallets y cajas"},
+{nombre:"Dommus Materiales",prov:"La Habana",nit:"30009901958",tipo:"Privada",rubro:"Prefabricados de hormigón"},
+{nombre:"Helados Kely",prov:"Granma",nit:"30004491048",tipo:"Privada",rubro:"Fabricación de helados y crema"},
+{nombre:"SC Plásticos",prov:"Villa Clara",nit:"30007701958",tipo:"Privada",rubro:"Tuberías e inyección plástica"},
+{nombre:"Constructora Atarés",prov:"La Habana",nit:"30003391048",tipo:"Privada",rubro:"Mantenimiento de estructuras"},
+{nombre:"Ria Gastronomía",prov:"Matanzas",nit:"30008801958",tipo:"Privada",rubro:"Restaurante y cafetería Varadero"},
+{nombre:"Ecoplast-M.C",prov:"La Habana",nit:"30001191058",tipo:"Privada",rubro:"Reciclaje e inyección de plásticos"},
+{nombre:"Autoviajes Cuba",prov:"La Habana",nit:"30005591048",tipo:"Privada",rubro:"Renta y transporte con chofer"},
+{nombre:"Impresiones Impronta",prov:"La Habana",nit:"20002201968",tipo:"CNA",rubro:"Cooperativa de artes gráﬁcas"},
+];
+
+const CATEGORIAS_MIPYME = [
+{kw:["dulce de leche","leche","queso","yogurt","yogur","mantequilla","lacteo","nata"],mip:[19,50]},
+{kw:["pan","harina","reposteria","pastel","galleta","bizcocho","panetela","torta","dulce","chocolate"],mip:[0,34,60,79,69]},
+{kw:["carne","pollo","cerdo","embutido","jamon","chorizo","mortadela","salchicha","ahumado","picadillo","hamburguesa de"],mip:[12,77,62,53]},
+{kw:["pescado","camaron","marisco","atun","tilapia","claria"],mip:[32]},
+{kw:["mani","turron","confite"],mip:[23]},
+{kw:["conserva","fruta","vegetal","mermelada","jugo","pure","tomate","compota","encurtido"],mip:[11,43,52,24,42,61]},
+{kw:["cafe"],mip:[68]},
+{kw:["helado"],mip:[92]},
+{kw:["vino","licor","ron","cerveza","aguardiente"],mip:[46,63]},
+{kw:["hamburguesa","pizza","perro caliente","sandwich","papa frita"],mip:[26,57]},
+{kw:["restaurante","banquete","catering","bistro","cafeteria","paladar","fonda"],mip:[25,51,72,85,95]},
+{kw:["alimento","croqueta","comida preparada"],mip:[18,27]},
+{kw:["ropa","textil","camisa","pantalon","vestido","tela","confeccion","costura","blusa","short","jean"],mip:[28]},
+{kw:["zapato","calzado","sandalia","bota","chancleta","tenis"],mip:[33]},
+{kw:["mueble","madera","silla","mesa","colchon","cama","escaparate","pallet"],mip:[48,55,90]},
+{kw:["juguete"],mip:[76]},
+{kw:["cemento","bloque","pintura","baldosa","mosaico","hormigon","cabilla","ladrillo","construccion","yeso","masilla"],mip:[20,91,86,80,83,84,94]},
+{kw:["plastico","pomo","envase","nylon","palangana","cubo plastico","jaba"],mip:[2,4,44,54,93,96]},
+{kw:["software","licencia","computadora","laptop","informatica","pagina web","sistema","antivirus","programa"],mip:[6,17,39,16,49,67,70,71,15]},
+{kw:["impresion","impresora","tinta","toner","imprenta","grafico","cartel","pancarta","fotografia","tarjeta"],mip:[8,29,58,78,98]},
+{kw:["auto","carro","camion","mecanica","alternador","freno","amortiguador","bujias","aceite de motor"],mip:[5,31,41,59,81,74,75,66]},
+{kw:["moto"],mip:[30]},
+{kw:["bicicleta","bici"],mip:[36]},
+{kw:["neumatico","goma"],mip:[9]},
+{kw:["refrigeracion","clima","split","climatizacion","aire acondicionado","freezer","nevera"],mip:[40]},
+{kw:["electrodomestico","televisor","ventilador","olla","batidora","refrigerador","cocina"],mip:[88]},
+{kw:["medicamento","farmacia"],mip:[37]},
+{kw:["lavanderia","tintoreria"],mip:[38]},
+{kw:["jardin","paisajismo"],mip:[22]},
+{kw:["contable","contabilidad","auditoria","teneduria"],mip:[45,82]},
+{kw:["transporte","carga","flete","mudanza"],mip:[47,56,73,97]},
+{kw:["mensajeria","delivery","paqueteria"],mip:[64]},
+{kw:["maquinaria","equipo industrial","planta electrica","soldador"],mip:[35,3]},
+{kw:["medicion","sensor","bascula","pesa"],mip:[1,65]},
+{kw:["vidrio","frasco"],mip:[87]},
+{kw:["reciclaje","desecho","chatarra"],mip:[13,21]},
+{kw:["semilla","fertilizante","microvegetal"],mip:[7]},
+{kw:["recreacion","parque"],mip:[10]},
+];
+const MIPYME_FALLBACK = 14; // Serlovem - Comercio mayorista
 const App = {
     semanaActual: 1,
     negocioActual: null,
@@ -892,16 +1057,92 @@ const App = {
         const tbody = document.getElementById('tb-ficha-costo');
         if (!tbody) return;
         tbody.innerHTML = '';
-        if (this.productos.length === 0) { tbody.innerHTML = `<tr><td colspan="6" style="color:var(--text-sub);">Sin productos</td></tr>`; return; }
+        if (this.productos.length === 0) { tbody.innerHTML = `<tr><td colspan="7" style="color:var(--text-sub);">Sin productos</td></tr>`; return; }
         this.productos.forEach(p => {
             const c = parseFloat(p.costo) || 0;
             const pr = parseFloat(p.precio) || 0;
             const co = c*0.40, ga = c*0.30, ca = c+co+ga;
             const r = pr > ca ? 'class="price-exceeded"' : '';
             const n = String(p.nombre || '');
-            tbody.innerHTML += `<tr><td class="txt-left"><strong>${n}</strong></td><td>$${c.toFixed(2)}</td><td>$${co.toFixed(2)}</td><td>$${ga.toFixed(2)}</td><td class="txt-green"><strong>$${ca.toFixed(2)}</strong></td><td><span ${r}>$${pr.toFixed(2)}</span></td></tr>`;
+            const cod = String(p.codigo).replace(/'/g, "\\'");
+            tbody.innerHTML += `<tr><td class="txt-left"><strong>${n}</strong></td><td>$${c.toFixed(2)}</td><td>$${co.toFixed(2)}</td><td>$${ga.toFixed(2)}</td><td class="txt-green"><strong>$${ca.toFixed(2)}</strong></td><td><span ${r}>$${pr.toFixed(2)}</span></td><td><button type="button" class="btn btn-sm" title="Generar factura de compra" onclick="App.generarTicketCompra('${cod}')">🧾</button></td></tr>`;
         });
     },
+
+    // ═══════ TICKET FACTURA DE COMPRA ═══════
+    cantidadInicial(p) {
+        const vend = (this.ventas || []).filter(v => String(v.prodId) === String(p.codigo))
+            .reduce((s, v) => s + (parseInt(v.cantidad) || 0), 0);
+        return (parseInt(p.stock) || 0) + vend;
+    },
+    elegirMipyme(nombreProd) {
+        const norm = ' ' + String(nombreProd || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') + ' ';
+        let bestCat = -1, bestScore = 0, bestLen = 0;
+        CATEGORIAS_MIPYME.forEach((cat, ci) => {
+            let score = 0, mx = 0;
+            cat.kw.forEach(k => { if (norm.includes(' ' + k) || norm.includes(k + ' ')) { score += k.split(' ').length; if (k.length > mx) mx = k.length; } });
+            if (score > bestScore || (score === bestScore && mx > bestLen)) { bestScore = score; bestCat = ci; bestLen = mx; }
+        });
+        if (bestCat < 0) return MIPYMES[MIPYME_FALLBACK];
+        const cat = CATEGORIAS_MIPYME[bestCat];
+        let h = 0;
+        for (let i = 0; i < norm.length; i++) h = (h * 31 + norm.charCodeAt(i)) >>> 0;
+        return MIPYMES[cat.mip[h % cat.mip.length]];
+    },
+    proximoTicket() {
+        const k = 'cmn_ticket_' + this.negocioActual;
+        const n = (parseInt(localStorage.getItem(k) || '0', 10) || 0) + 1;
+        localStorage.setItem(k, String(n));
+        return n;
+    },
+    generarTicketCompra(codigo) {
+        const p = this.productos.find(x => String(x.codigo) === String(codigo));
+        if (!p) return;
+        const cant = this.cantidadInicial(p);
+        const costo = parseFloat(p.costo) || 0;
+        const total = cant * costo;
+        const m = this.elegirMipyme(p.nombre);
+        const n = this.proximoTicket();
+        const f = new Date();
+        const fecha = String(f.getDate()).padStart(2,'0') + '/' + String(f.getMonth()+1).padStart(2,'0') + '/' + String(f.getFullYear()).slice(2);
+        const tipoLinea = m.tipo === 'Privada' ? 'S.U.R.L. Privada' : (m.tipo === 'Estatal' ? 'Empresa Estatal' : 'CNA');
+        const sep = '--------------------------------';
+        const money = v => '$' + (parseFloat(v) || 0).toFixed(2);
+        const num = String(n).padStart(4, '0');
+        const html =
+            '<div class="ticket">' +
+            '<div class="t-center t-bold">' + m.nombre.toUpperCase() + '</div>' +
+            '<div class="t-center">' + tipoLinea + '</div>' +
+            '<div class="t-center">NIT: ' + m.nit + '</div>' +
+            '<div class="t-center">' + m.prov + ', Cuba</div>' +
+            '<div class="t-sep">' + sep + '</div>' +
+            '<div>TKT: #' + num + ' ' + fecha + '</div>' +
+            '<div class="t-center t-bold">FACTURA DE COMPRA</div>' +
+            '<div class="t-sep">' + sep + '</div>' +
+            '<div>' + String(p.nombre || '') + '</div>' +
+            '<div class="t-row"><span>' + cant + ' x ' + money(costo) + '</span><span>' + money(total) + '</span></div>' +
+            '<div class="t-sep">' + sep + '</div>' +
+            '<div class="t-row"><span>SUBTOTAL:</span><span>' + money(total) + '</span></div>' +
+            '<div class="t-row t-bold"><span>TOTAL CUP:</span><span>' + money(total) + '</span></div>' +
+            '<div class="t-sep">' + sep + '</div>' +
+            '<div class="t-center">*** Impreso por Impresora POS ***</div>' +
+            '<div class="t-center">¡Gracias por su preferencia!</div>' +
+            '<div class="t-center t-bold">APROBADO</div>' +
+            '<div class="t-center">MEP CUBA' + num + '</div>' +
+            '</div>';
+        document.getElementById('ticket-preview').innerHTML = html;
+        document.getElementById('ticket-mipyme-nota').textContent = 'Proveedor sugerido: ' + m.nombre + ' (' + m.rubro + ') · Cant. inicial: ' + cant;
+        document.getElementById('modal-ticket').style.display = 'flex';
+    },
+    imprimirTicket() {
+        const inner = document.getElementById('ticket-preview').innerHTML;
+        const css = '.ticket{font-family:"Courier New",monospace;font-size:13px;line-height:1.45;width:280px;margin:0 auto;color:#000;}.t-center{text-align:center;}.t-bold{font-weight:bold;}.t-sep{text-align:center;margin:2px 0;}.t-row{display:flex;justify-content:space-between;}';
+        const w = window.open('', '_blank', 'width=380,height=640');
+        if (!w) { alert('Permite las ventanas emergentes para imprimir.'); return; }
+        w.document.write('<html><head><title>Factura de compra</title><style>' + css + '@media print{body{margin:0;}}</style></head><body>' + inner + '<scr' + 'ipt>window.onload=function(){window.print();}</scr' + 'ipt></body></html>');
+        w.document.close();
+    },
+    cerrarModalTicket() { document.getElementById('modal-ticket').style.display = 'none'; },
 
     // ═══════ VENTAS ═══════
     cargarSelectorVentas() {
