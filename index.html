@@ -666,6 +666,67 @@ const CATEGORIAS_MIPYME = [
 {kw:["recreacion","parque"],mip:[10]},
 ];
 const MIPYME_FALLBACK = 14; // Serlovem - Comercio mayorista
+
+// ── Logo y cuño SVG generados por empresa (para el ticket POS) ──
+function inicialesEmpresa(nombre) {
+    const stop = ['de','la','el','los','las','y','del','en','e'];
+    const words = String(nombre || '').split(/\s+/).filter(w => w && stop.indexOf(w.toLowerCase()) < 0);
+    return ((words.slice(0, 2).map(w => w.charAt(0)).join('') || String(nombre || '').slice(0, 2)) || '??').toUpperCase();
+}
+function hslAHex(h, s, l) {
+    s /= 100; l /= 100;
+    const k = n => (n + h / 30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    const to = x => Math.round(255 * x).toString(16).padStart(2, '0');
+    return '#' + to(f(0)) + to(f(8)) + to(f(4));
+}
+function colorEmpresa(nombre) {
+    let h = 0;
+    const s = String(nombre || '');
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    const hue = h % 360;
+    return { bg: hslAHex(hue, 62, 44), ring: hslAHex(hue, 68, 30) };
+}
+function estrellaSVG(cx, cy, R, r, color) {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+        const rad = (i % 2 === 0) ? R : r;
+        const a = -Math.PI / 2 + i * Math.PI / 5;
+        pts.push((cx + rad * Math.cos(a)).toFixed(1) + ',' + (cy + rad * Math.sin(a)).toFixed(1));
+    }
+    return '<polygon points="' + pts.join(' ') + '" fill="' + color + '"/>';
+}
+function logoEmpresaSVG(m) {
+    const ini = inicialesEmpresa(m.nombre);
+    const c = colorEmpresa(m.nombre);
+    const fs = ini.length > 2 ? 20 : 26;
+    return '<svg width="68" height="68" viewBox="0 0 72 72" style="display:block;margin:0 auto 4px;">' +
+        '<circle cx="36" cy="36" r="33" fill="' + c.bg + '"/>' +
+        '<circle cx="36" cy="36" r="33" fill="none" stroke="' + c.ring + '" stroke-width="4"/>' +
+        '<circle cx="36" cy="36" r="26" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1.5"/>' +
+        '<text x="36" y="' + (36 + fs * 0.36) + '" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="' + fs + '" font-weight="900" fill="#ffffff">' + ini + '</text>' +
+        '</svg>';
+}
+function cunoEmpresaSVG(m, num) {
+    const uid = 'cz' + num + '_' + String(m.nit).slice(-4);
+    const nombre = String(m.nombre || '').toUpperCase();
+    const fsTop = Math.min(11, 145 / Math.max(nombre.length * 0.68, 1)).toFixed(1);
+    const azul = '#1e40af';
+    return '<svg width="132" height="132" viewBox="0 0 140 140" style="display:block;margin:6px auto 0;transform:rotate(-8deg);opacity:.93;">' +
+        '<defs>' +
+        '<path id="arcT-' + uid + '" d="M 18,70 A 52,52 0 0,1 122,70" fill="none"/>' +
+        '</defs>' +
+        '<circle cx="70" cy="70" r="66" fill="none" stroke="' + azul + '" stroke-width="3.5"/>' +
+        '<circle cx="70" cy="70" r="59" fill="none" stroke="' + azul + '" stroke-width="1.2"/>' +
+        '<text font-family="Arial,Helvetica,sans-serif" font-size="' + fsTop + '" font-weight="bold" fill="' + azul + '" letter-spacing="1">' +
+        '<textPath href="#arcT-' + uid + '" startOffset="50%" text-anchor="middle">' + nombre + '</textPath></text>' +
+        estrellaSVG(70, 56, 13, 5.2, azul) +
+        '<text x="70" y="88" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="10" font-weight="bold" fill="' + azul + '" letter-spacing="1">APROBADO</text>' +
+        '<text x="70" y="110" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="9" font-weight="bold" fill="' + azul + '" letter-spacing="1.5">NIT ' + m.nit + '</text>' +
+        '</svg>';
+}
+
 const App = {
     semanaActual: 1,
     negocioActual: null,
@@ -1111,6 +1172,7 @@ const App = {
         const num = String(n).padStart(4, '0');
         const html =
             '<div class="ticket">' +
+            logoEmpresaSVG(m) +
             '<div class="t-center t-bold">' + m.nombre.toUpperCase() + '</div>' +
             '<div class="t-center">' + tipoLinea + '</div>' +
             '<div class="t-center">NIT: ' + m.nit + '</div>' +
@@ -1129,6 +1191,7 @@ const App = {
             '<div class="t-center">¡Gracias por su preferencia!</div>' +
             '<div class="t-center t-bold">APROBADO</div>' +
             '<div class="t-center">MEP CUBA' + num + '</div>' +
+            cunoEmpresaSVG(m, num) +
             '</div>';
         document.getElementById('ticket-preview').innerHTML = html;
         document.getElementById('ticket-mipyme-nota').textContent = 'Proveedor sugerido: ' + m.nombre + ' (' + m.rubro + ') · Cant. inicial: ' + cant;
